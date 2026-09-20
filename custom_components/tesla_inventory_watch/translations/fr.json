@@ -1,0 +1,97 @@
+{
+  "title": "Tesla Inventory Watch",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Surveiller l'inventaire Tesla",
+        "description": "Configure les filtres Tesla, la fréquence de contrôle et les notifications.",
+        "data": {
+          "model": "Modèle",
+          "condition": "État du véhicule",
+          "categories": "Versions / codes Tesla",
+          "years": "Années",
+          "paints": "Couleurs / codes Tesla",
+          "price_min": "Prix minimum (€)",
+          "price_max": "Prix maximum (€)",
+          "odometer_min": "Kilométrage minimum (km)",
+          "odometer_max": "Kilométrage maximum (km)",
+          "zip": "Code postal",
+          "range": "Rayon Tesla",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sort": "Trier par",
+          "order": "Ordre",
+          "interval_minutes": "Intervalle de vérification",
+          "notify_enabled": "Activer les notifications",
+          "notify_service": "Service de notification"
+        },
+        "data_description": {
+          "categories": "Les valeurs de ta recherche actuelle sont LRRWD, PRRWD et LRAWD. D'autres codes Tesla peuvent être saisis manuellement.",
+          "paints": "Les valeurs de ta recherche actuelle sont BLACK et GREY. D'autres codes Tesla peuvent être saisis manuellement.",
+          "range": "Conserve 0 pour reproduire ta recherche actuelle.",
+          "latitude": "Coordonnée utilisée par Tesla avec le code postal. Valeur actuelle : 43.3957925.",
+          "longitude": "Coordonnée utilisée par Tesla avec le code postal. Valeur actuelle : 5.1744903.",
+          "notify_service": "Exemple : notify.mobile_app_iphone. Laisse les notifications désactivées si aucun service n'est choisi."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible d'interroger l'inventaire Tesla avec ces paramètres.",
+      "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
+      "notification_service_required": "Choisis un service de notification ou désactive les notifications."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Tesla Inventory Watch",
+        "description": "Toute modification des filtres recrée silencieusement la référence des VIN afin d'éviter les fausses alertes.",
+        "data": {
+          "model": "Modèle",
+          "condition": "État du véhicule",
+          "categories": "Versions / codes Tesla",
+          "years": "Années",
+          "paints": "Couleurs / codes Tesla",
+          "price_min": "Prix minimum (€)",
+          "price_max": "Prix maximum (€)",
+          "odometer_min": "Kilométrage minimum (km)",
+          "odometer_max": "Kilométrage maximum (km)",
+          "zip": "Code postal",
+          "range": "Rayon Tesla",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sort": "Trier par",
+          "order": "Ordre",
+          "interval_minutes": "Intervalle de vérification",
+          "notify_enabled": "Activer les notifications",
+          "notify_service": "Service de notification"
+        },
+        "data_description": {
+          "categories": "Tu peux sélectionner les codes connus ou en saisir un autre.",
+          "paints": "Tu peux sélectionner les codes connus ou en saisir un autre.",
+          "notify_service": "Exemple : notify.mobile_app_iphone."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible d'interroger l'inventaire Tesla avec ces paramètres.",
+      "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
+      "notification_service_required": "Choisis un service de notification ou désactive les notifications."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "available": {
+        "name": "Véhicules disponibles"
+      },
+      "new": {
+        "name": "Nouveaux véhicules"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Actualiser maintenant"
+      }
+    }
+  }
+}

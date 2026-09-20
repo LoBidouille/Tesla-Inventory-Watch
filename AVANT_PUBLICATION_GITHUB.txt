@@ -1,0 +1,6 @@
+Avant de publier sur GitHub :
+1) Ouvrir custom_components/tesla_inventory_watch/manifest.json
+2) Remplacer OWNER dans les champs documentation et issue_tracker par votre identifiant GitHub.
+3) Le dépôt doit être public pour être ajouté comme dépôt personnalisé dans HACS.
+
+Le reste du dossier peut être publié tel quel.

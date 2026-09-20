@@ -1,0 +1,12 @@
+{
+  "domain": "tesla_inventory_watch",
+  "name": "Tesla Inventory Watch",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/OWNER/tesla-inventory-watch#readme",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/OWNER/tesla-inventory-watch/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}

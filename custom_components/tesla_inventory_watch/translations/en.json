@@ -1,0 +1,84 @@
+{
+  "title": "Tesla Inventory Watch",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Watch Tesla inventory",
+        "description": "Configure Tesla filters, polling interval and notifications.",
+        "data": {
+          "model": "Model",
+          "condition": "Vehicle condition",
+          "categories": "Variants / Tesla codes",
+          "years": "Years",
+          "paints": "Colours / Tesla codes",
+          "price_min": "Minimum price (€)",
+          "price_max": "Maximum price (€)",
+          "odometer_min": "Minimum mileage (km)",
+          "odometer_max": "Maximum mileage (km)",
+          "zip": "Postal code",
+          "range": "Tesla search radius",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sort": "Sort by",
+          "order": "Order",
+          "interval_minutes": "Polling interval",
+          "notify_enabled": "Enable notifications",
+          "notify_service": "Notification service"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to query Tesla inventory with these settings.",
+      "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
+      "notification_service_required": "Choose a notification service or disable notifications."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tesla Inventory Watch options",
+        "description": "Changing inventory filters silently resets the VIN baseline to prevent false alerts.",
+        "data": {
+          "model": "Model",
+          "condition": "Vehicle condition",
+          "categories": "Variants / Tesla codes",
+          "years": "Years",
+          "paints": "Colours / Tesla codes",
+          "price_min": "Minimum price (€)",
+          "price_max": "Maximum price (€)",
+          "odometer_min": "Minimum mileage (km)",
+          "odometer_max": "Maximum mileage (km)",
+          "zip": "Postal code",
+          "range": "Tesla search radius",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "sort": "Sort by",
+          "order": "Order",
+          "interval_minutes": "Polling interval",
+          "notify_enabled": "Enable notifications",
+          "notify_service": "Notification service"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to query Tesla inventory with these settings.",
+      "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
+      "notification_service_required": "Choose a notification service or disable notifications."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "available": {
+        "name": "Vehicles available"
+      },
+      "new": {
+        "name": "New vehicles"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh now"
+      }
+    }
+  }
+}
