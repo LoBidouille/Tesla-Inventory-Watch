@@ -33,6 +33,10 @@ from .const import (
 class TeslaInventoryError(Exception):
     """Base Tesla inventory exception."""
 
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+
 
 class TeslaInventoryRateLimited(TeslaInventoryError):
     """Tesla rate limit exception."""
@@ -60,7 +64,7 @@ class TeslaInventoryApi:
     @property
     def signature(self) -> str:
         """Hash only inventory-affecting settings."""
-        raw = json.dumps(self._query_payload(0, 50), sort_keys=True, separators=(",", ":"))
+        raw = json.dumps(self._query_payload(0, 24), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def _query_payload(self, offset: int, count: int) -> dict[str, Any]:
@@ -119,7 +123,7 @@ class TeslaInventoryApi:
 
     async def async_get_inventory(self) -> dict[str, Any]:
         """Fetch matching vehicles, following pages when necessary."""
-        page_size = 50
+        page_size = 24
         offset = 0
         all_results: list[dict[str, Any]] = []
         total: int | None = None
@@ -154,13 +158,25 @@ class TeslaInventoryApi:
                             retry_after = 300
                         raise TeslaInventoryRateLimited(retry_after)
 
-                    response.raise_for_status()
-                    data = await response.json(content_type=None)
+                    if response.status < 200 or response.status >= 300:
+                        body = (await response.text())[:300].replace("\n", " ")
+                        raise TeslaInventoryError(
+                            f"HTTP {response.status}: {body or response.reason}",
+                            status=response.status,
+                        )
 
-            except TeslaInventoryRateLimited:
+                    try:
+                        data = await response.json(content_type=None)
+                    except (ValueError, json.JSONDecodeError) as err:
+                        body = (await response.text())[:300].replace("\n", " ")
+                        raise TeslaInventoryError(
+                            f"Réponse Tesla non JSON: {body or 'réponse vide'}"
+                        ) from err
+
+            except (TeslaInventoryRateLimited, TeslaInventoryError):
                 raise
             except (ClientError, ClientResponseError, TimeoutError, ValueError) as err:
-                raise TeslaInventoryError(str(err)) from err
+                raise TeslaInventoryError(f"{type(err).__name__}: {err}") from err
 
             results = data.get("results")
             if not isinstance(results, list):
