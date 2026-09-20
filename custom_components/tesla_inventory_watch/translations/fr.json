@@ -36,9 +36,11 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'interroger l'inventaire Tesla avec ces paramètres.",
+      "cannot_connect": "Impossible d'interroger l'inventaire Tesla. La requête a échoué ou Tesla a renvoyé une réponse invalide.",
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
-      "notification_service_required": "Choisis un service de notification ou désactive les notifications."
+      "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
+      "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
+      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie."
     }
   },
   "options": {
@@ -74,9 +76,11 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'interroger l'inventaire Tesla avec ces paramètres.",
+      "cannot_connect": "Impossible d'interroger l'inventaire Tesla. La requête a échoué ou Tesla a renvoyé une réponse invalide.",
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
-      "notification_service_required": "Choisis un service de notification ou désactive les notifications."
+      "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
+      "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
+      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie."
     }
   },
   "entity": {
