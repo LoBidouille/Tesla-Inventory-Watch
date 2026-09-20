@@ -24,7 +24,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .api import TeslaInventoryApi, TeslaInventoryError
+from .api import TeslaInventoryApi, TeslaInventoryError, TeslaInventoryRateLimited
 from .const import (
     CONF_CATEGORIES,
     CONF_CONDITION,
@@ -270,8 +270,13 @@ class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
                         user_input,
                     )
                     await api.async_get_inventory()
-                except TeslaInventoryError:
-                    errors["base"] = "cannot_connect"
+                except TeslaInventoryRateLimited:
+                    errors["base"] = "rate_limited"
+                except TeslaInventoryError as err:
+                    if getattr(err, "status", None) == 403:
+                        errors["base"] = "forbidden"
+                    else:
+                        errors["base"] = "cannot_connect"
                 else:
                     model = str(user_input[CONF_MODEL]).upper()
                     zip_code = str(user_input[CONF_ZIP])
@@ -317,8 +322,13 @@ class TeslaInventoryOptionsFlow(OptionsFlowWithReload):
                         user_input,
                     )
                     await api.async_get_inventory()
-                except TeslaInventoryError:
-                    errors["base"] = "cannot_connect"
+                except TeslaInventoryRateLimited:
+                    errors["base"] = "rate_limited"
+                except TeslaInventoryError as err:
+                    if getattr(err, "status", None) == 403:
+                        errors["base"] = "forbidden"
+                    else:
+                        errors["base"] = "cannot_connect"
                 else:
                     return self.async_create_entry(data=user_input)
 
