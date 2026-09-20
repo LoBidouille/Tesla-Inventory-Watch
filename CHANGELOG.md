@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- Requête Tesla alignée sur le site officiel avec `count=24`.
+- Pagination par blocs de 24 véhicules.
+- Messages dédiés pour les réponses HTTP 403 et 429.
+- Diagnostic amélioré des réponses Tesla non JSON.
+- Liens GitHub du manifeste corrigés pour LoBidouille/Tesla-Inventory-Watch.
+
 ## 0.2.0
 
 - Structure de dépôt compatible HACS.
