@@ -28,9 +28,11 @@
       }
     },
     "error": {
-      "cannot_connect": "Unable to query Tesla inventory with these settings.",
+      "cannot_connect": "Unable to query Tesla inventory. The request failed or Tesla returned an invalid response.",
       "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
-      "notification_service_required": "Choose a notification service or disable notifications."
+      "notification_service_required": "Choose a notification service or disable notifications.",
+      "forbidden": "Tesla rejected the request (HTTP 403). Try again in a few minutes; if it persists, check Home Assistant logs.",
+      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again."
     }
   },
   "options": {
@@ -61,9 +63,11 @@
       }
     },
     "error": {
-      "cannot_connect": "Unable to query Tesla inventory with these settings.",
+      "cannot_connect": "Unable to query Tesla inventory. The request failed or Tesla returned an invalid response.",
       "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
-      "notification_service_required": "Choose a notification service or disable notifications."
+      "notification_service_required": "Choose a notification service or disable notifications.",
+      "forbidden": "Tesla rejected the request (HTTP 403). Try again in a few minutes; if it persists, check Home Assistant logs.",
+      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again."
     }
   },
   "entity": {
