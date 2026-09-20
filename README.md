@@ -39,11 +39,10 @@ HACS installe une intégration depuis un **dépôt GitHub public**. Ce dossier e
 
 1. Créer un dépôt GitHub, par exemple `tesla-inventory-watch`.
 2. Envoyer tout le contenu de ce dossier à la racine du dépôt.
-3. Dans `custom_components/tesla_inventory_watch/manifest.json`, remplacer `OWNER` dans les deux URL GitHub par le nom du compte ou de l'organisation qui héberge le dépôt.
-4. Dans HACS : menu `⋮` → **Dépôts personnalisés**.
-5. Ajouter l'URL du dépôt GitHub et sélectionner la catégorie **Intégration**.
-6. Installer **Tesla Inventory Watch** puis redémarrer Home Assistant.
-7. Aller dans **Paramètres → Appareils et services → Ajouter une intégration** et rechercher **Tesla Inventory Watch**.
+3. Dans HACS : menu `⋮` → **Dépôts personnalisés**.
+4. Ajouter `https://github.com/LoBidouille/Tesla-Inventory-Watch` et sélectionner la catégorie **Intégration**.
+5. Installer **Tesla Inventory Watch** puis redémarrer Home Assistant.
+6. Aller dans **Paramètres → Appareils et services → Ajouter une intégration** et rechercher **Tesla Inventory Watch**.
 
 ## Logo
 
