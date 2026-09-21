@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Any
 
-from curl_cffi.requests import AsyncSession
+from aiohttp import ClientError, ClientSession, ClientTimeout
 
 from .const import (
     CONF_CATEGORIES,
@@ -46,11 +46,10 @@ class TeslaInventoryRateLimited(TeslaInventoryError):
 
 
 class TeslaInventoryApi:
-    """Small client for Tesla's inventory endpoint."""
+    """Client for Tesla's inventory endpoint."""
 
-    def __init__(self, session: Any, config: dict[str, Any]) -> None:
-        # Home Assistant's aiohttp session is intentionally not used here.
-        # Tesla may reject its TLS/HTTP fingerprint with HTTP 403.
+    def __init__(self, session: ClientSession, config: dict[str, Any]) -> None:
+        self._session = session
         self._config = config
 
     @property
@@ -97,7 +96,6 @@ class TeslaInventoryApi:
             "order": self._config.get(CONF_ORDER, "asc"),
             "market": "FR",
             "language": "fr",
-            # Tesla's browser request encodes this space as "+" in the URL.
             "super_region": "north america",
             "PaymentType": "cash",
             "paymentRange": (
@@ -128,80 +126,82 @@ class TeslaInventoryApi:
     def _referer(self) -> str:
         return f"{TESLA_INVENTORY_BASE}/{self.condition}/{self.model}"
 
+    @staticmethod
+    def _browser_headers() -> dict[str, str]:
+        return {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/153.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+
+    async def _async_warm_session(self) -> None:
+        """Visit inventory page first so Tesla can set normal browser cookies."""
+        headers = {
+            **self._browser_headers(),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,*/*;q=0.8"
+            ),
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Upgrade-Insecure-Requests": "1",
+        }
+
+        try:
+            async with self._session.get(
+                self._referer(),
+                headers=headers,
+                timeout=ClientTimeout(total=30),
+                allow_redirects=True,
+            ) as response:
+                await response.read()
+        except (ClientError, TimeoutError):
+            # The API call below provides the authoritative error.
+            pass
+
     async def async_get_inventory(self) -> dict[str, Any]:
-        """Fetch matching vehicles while impersonating a normal browser."""
+        """Fetch matching vehicles using a cookie-preserving HA web session."""
         page_size = 24
         offset = 0
         all_results: list[dict[str, Any]] = []
         total: int | None = None
-        referer = self._referer()
 
-        browser_headers = {
-            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-        }
+        await self._async_warm_session()
 
         api_headers = {
+            **self._browser_headers(),
             "Accept": "application/json,text/plain,*/*",
-            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-            "Referer": referer,
+            "Referer": self._referer(),
             "Origin": "https://www.tesla.com",
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
         }
 
-        try:
-            async with AsyncSession() as browser:
-                # Establish the same type of session/cookies as the inventory page.
-                # A failure on this warm-up request is not fatal by itself.
-                try:
-                    await browser.get(
-                        referer,
-                        headers=browser_headers,
-                        impersonate="chrome",
-                        timeout=30,
-                        allow_redirects=True,
-                    )
-                except Exception:
-                    pass
+        for _ in range(4):
+            payload = self._query_payload(offset, page_size)
 
-                # Safety cap: 4 x 24 = 96 matching vehicles.
-                for _ in range(4):
-                    payload = self._query_payload(offset, page_size)
-
-                    response = None
-                    status = 403
-
-                    # Tesla may reject one browser/TLS fingerprint while
-                    # accepting another. Retry the public endpoint with a
-                    # small set of genuine browser fingerprints.
-                    for browser_profile in (
-                        "chrome",
-                        "safari_ios",
-                        "chrome_android",
-                    ):
-                        response = await browser.get(
-                            TESLA_API,
-                            params={
-                                "query": json.dumps(
-                                    payload,
-                                    separators=(",", ":"),
-                                )
-                            },
-                            headers=api_headers,
-                            impersonate=browser_profile,
-                            timeout=30,
-                            allow_redirects=True,
+            try:
+                async with self._session.get(
+                    TESLA_API,
+                    params={
+                        "query": json.dumps(
+                            payload,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
                         )
-                        status = int(response.status_code)
-
-                        if status != 403:
-                            break
-
-                    if response is None:
-                        raise TeslaInventoryError(
-                            "Aucune réponse reçue de Tesla"
-                        )
+                    },
+                    headers=api_headers,
+                    timeout=ClientTimeout(total=30),
+                    allow_redirects=True,
+                ) as response:
+                    status = response.status
 
                     if status == 429:
                         retry_header = response.headers.get("Retry-After", "")
@@ -214,50 +214,53 @@ class TeslaInventoryApi:
                             retry_after = 300
                         raise TeslaInventoryRateLimited(retry_after)
 
+                    raw = await response.text()
+
                     if status < 200 or status >= 300:
-                        body = (response.text or "")[:300].replace("\n", " ")
+                        body = raw[:300].replace("\n", " ")
                         raise TeslaInventoryError(
-                            f"HTTP {status}: {body or 'réponse refusée par Tesla'}",
+                            f"HTTP {status}: "
+                            f"{body or response.reason or 'réponse refusée par Tesla'}",
                             status=status,
                         )
 
                     try:
-                        data = response.json()
-                    except Exception as err:
-                        body = (response.text or "")[:300].replace("\n", " ")
+                        data = json.loads(raw)
+                    except (TypeError, ValueError, json.JSONDecodeError) as err:
+                        body = raw[:300].replace("\n", " ")
                         raise TeslaInventoryError(
                             f"Réponse Tesla non JSON: {body or 'réponse vide'}"
                         ) from err
 
-                    results = data.get("results")
-                    if not isinstance(results, list):
-                        raise TeslaInventoryError(
-                            "Tesla response does not contain a results list"
-                        )
+            except (TeslaInventoryRateLimited, TeslaInventoryError):
+                raise
+            except (ClientError, TimeoutError) as err:
+                raise TeslaInventoryError(
+                    f"{type(err).__name__}: {err}"
+                ) from err
 
-                    all_results.extend(
-                        item for item in results if isinstance(item, dict)
-                    )
+            results = data.get("results")
+            if not isinstance(results, list):
+                raise TeslaInventoryError(
+                    "Tesla response does not contain a results list"
+                )
 
-                    if total is None:
-                        raw_total = data.get("total_matches_found")
-                        total = (
-                            int(raw_total)
-                            if isinstance(raw_total, (int, float))
-                            else len(results)
-                        )
+            all_results.extend(
+                item for item in results if isinstance(item, dict)
+            )
 
-                    if len(results) < page_size or len(all_results) >= total:
-                        break
+            if total is None:
+                raw_total = data.get("total_matches_found")
+                total = (
+                    int(raw_total)
+                    if isinstance(raw_total, (int, float))
+                    else len(results)
+                )
 
-                    offset += len(results)
+            if len(results) < page_size or len(all_results) >= total:
+                break
 
-        except (TeslaInventoryRateLimited, TeslaInventoryError):
-            raise
-        except Exception as err:
-            raise TeslaInventoryError(
-                f"{type(err).__name__}: {err}"
-            ) from err
+            offset += len(results)
 
         vehicles = [self._normalize_vehicle(car) for car in all_results]
         vehicles = [car for car in vehicles if car.get("vin")]
