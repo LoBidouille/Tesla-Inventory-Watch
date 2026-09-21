@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any
 
 import voluptuous as vol
+from aiohttp import CookieJar
 
 from homeassistant.config_entries import (
     ConfigFlow,
@@ -13,7 +14,7 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -265,11 +266,16 @@ class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 try:
-                    api = TeslaInventoryApi(
-                        async_get_clientsession(self.hass),
-                        user_input,
+                    websession = async_create_clientsession(
+                        self.hass,
+                        auto_cleanup=False,
+                        cookie_jar=CookieJar(),
                     )
-                    await api.async_get_inventory()
+                    try:
+                        api = TeslaInventoryApi(websession, user_input)
+                        await api.async_get_inventory()
+                    finally:
+                        websession.detach()
                 except TeslaInventoryRateLimited:
                     errors["base"] = "rate_limited"
                 except TeslaInventoryError as err:
@@ -317,11 +323,16 @@ class TeslaInventoryOptionsFlow(OptionsFlowWithReload):
 
             if not errors:
                 try:
-                    api = TeslaInventoryApi(
-                        async_get_clientsession(self.hass),
-                        user_input,
+                    websession = async_create_clientsession(
+                        self.hass,
+                        auto_cleanup=False,
+                        cookie_jar=CookieJar(),
                     )
-                    await api.async_get_inventory()
+                    try:
+                        api = TeslaInventoryApi(websession, user_input)
+                        await api.async_get_inventory()
+                    finally:
+                        websession.detach()
                 except TeslaInventoryRateLimited:
                     errors["base"] = "rate_limited"
                 except TeslaInventoryError as err:
