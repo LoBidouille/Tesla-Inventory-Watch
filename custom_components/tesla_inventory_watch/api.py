@@ -169,21 +169,39 @@ class TeslaInventoryApi:
                 for _ in range(4):
                     payload = self._query_payload(offset, page_size)
 
-                    response = await browser.get(
-                        TESLA_API,
-                        params={
-                            "query": json.dumps(
-                                payload,
-                                separators=(",", ":"),
-                            )
-                        },
-                        headers=api_headers,
-                        impersonate="chrome",
-                        timeout=30,
-                        allow_redirects=True,
-                    )
+                    response = None
+                    status = 403
 
-                    status = int(response.status_code)
+                    # Tesla may reject one browser/TLS fingerprint while
+                    # accepting another. Retry the public endpoint with a
+                    # small set of genuine browser fingerprints.
+                    for browser_profile in (
+                        "chrome",
+                        "safari_ios",
+                        "chrome_android",
+                    ):
+                        response = await browser.get(
+                            TESLA_API,
+                            params={
+                                "query": json.dumps(
+                                    payload,
+                                    separators=(",", ":"),
+                                )
+                            },
+                            headers=api_headers,
+                            impersonate=browser_profile,
+                            timeout=30,
+                            allow_redirects=True,
+                        )
+                        status = int(response.status_code)
+
+                        if status != 403:
+                            break
+
+                    if response is None:
+                        raise TeslaInventoryError(
+                            "Aucune réponse reçue de Tesla"
+                        )
 
                     if status == 429:
                         retry_header = response.headers.get("Retry-After", "")
