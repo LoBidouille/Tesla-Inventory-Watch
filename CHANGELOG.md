@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Corrige les refus HTTP 403 de Tesla avec une empreinte navigateur Chrome au niveau HTTP/TLS.
+- Établit une session sur la page d'inventaire avant l'appel API afin de conserver les cookies.
+- Corrige `super_region` en `north america`, conformément à la requête navigateur Tesla.
+- Utilise `curl-cffi==0.16.3` pour l'impersonation navigateur.
+- Conserve la pagination Tesla par blocs de 24 résultats.
+
 ## 0.2.1
 
 - Requête Tesla alignée sur le site officiel avec `count=24`.
