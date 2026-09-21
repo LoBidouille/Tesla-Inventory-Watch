@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+- Corrige le crash « 500 Internal Server Error » du Config Flow.
+- Supprime la dépendance externe `curl-cffi` afin que Home Assistant puisse charger le flux sans installation binaire.
+- Utilise uniquement le client `aiohttp` natif de Home Assistant.
+- Crée une session dédiée avec cookies pour reproduire la navigation Tesla.
+- Conserve `count=24`, `super_region = north america` et les en-têtes navigateur.
+
 ## 0.2.3
 
 - Ajoute un repli automatique entre les empreintes Chrome, Safari iOS et Chrome Android en cas de HTTP 403 Tesla.
