@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Ajoute un repli automatique entre les empreintes Chrome, Safari iOS et Chrome Android en cas de HTTP 403 Tesla.
+- Conserve la session et les cookies Tesla entre les tentatives.
+- Améliore la robustesse face aux protections anti-bot variables de Tesla.
+
 ## 0.2.2
 
 - Corrige les refus HTTP 403 de Tesla avec une empreinte navigateur Chrome au niveau HTTP/TLS.
