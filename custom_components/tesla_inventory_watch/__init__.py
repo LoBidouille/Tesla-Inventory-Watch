@@ -7,7 +7,9 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from aiohttp import CookieJar
+
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import TeslaInventoryApi
 from .const import (
@@ -42,7 +44,11 @@ async def async_setup_entry(
     config.setdefault(CONF_NOTIFY_ENABLED, DEFAULT_NOTIFY_ENABLED)
     config.setdefault(CONF_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE)
 
-    api = TeslaInventoryApi(async_get_clientsession(hass), config)
+    websession = async_create_clientsession(
+        hass,
+        cookie_jar=CookieJar(),
+    )
+    api = TeslaInventoryApi(websession, config)
     coordinator = TeslaInventoryCoordinator(hass, entry, api, config)
 
     await coordinator.async_config_entry_first_refresh()
