@@ -7,6 +7,8 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/LoBidouille/Tesla-Inventory-Watch/issues",
-  "requirements": [],
-  "version": "0.2.1"
+  "requirements": [
+    "curl-cffi==0.16.3"
+  ],
+  "version": "0.2.2"
 }
