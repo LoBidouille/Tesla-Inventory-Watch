@@ -69,6 +69,8 @@ class TeslaInventoryAvailableSensor(TeslaInventoryBaseSensor):
         return {
             "vins": [car.get("vin") for car in vehicles if car.get("vin")],
             "baseline_reset": bool(self.coordinator.data.get("baseline_reset", False)),
+            "last_checked": self.coordinator.data.get("last_checked"),
+            "next_check": self.coordinator.data.get("next_check"),
         }
 
 

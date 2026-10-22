@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Surveiller l'inventaire Tesla",
-        "description": "Configure les filtres Tesla, la fréquence de contrôle et les notifications.",
+        "description": "Configurez votre recherche et les notifications. Un client compatible Chrome interroge Tesla au maximum toutes les 8 heures (3 fois par jour par recherche). Le premier contrôle a lieu après enregistrement ; un refus Tesla est signalé dans l’état de l’intégration.",
         "data": {
           "model": "Modèle",
           "condition": "État du véhicule",
@@ -21,7 +21,6 @@
           "longitude": "Longitude",
           "sort": "Trier par",
           "order": "Ordre",
-          "interval_minutes": "Intervalle de vérification",
           "notify_enabled": "Activer les notifications",
           "notify_service": "Service de notification"
         },
@@ -36,11 +35,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'interroger l'inventaire Tesla. La requête a échoué ou Tesla a renvoyé une réponse invalide.",
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
       "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
-      "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
-      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie.",
       "invalid_coordinates": "Saisissez une latitude entre -90 et 90 ou une longitude entre -180 et 180, sans valeur infinie.",
       "invalid_zip": "Saisissez un code postal français à cinq chiffres.",
       "invalid_notify_service": "Saisissez un service notify, par exemple notify.mobile_app_iphone."
@@ -50,7 +46,7 @@
     "step": {
       "init": {
         "title": "Options Tesla Inventory Watch",
-        "description": "Toute modification des filtres recrée silencieusement la référence des VIN afin d'éviter les fausses alertes.",
+        "description": "Les contrôles restent limités à une fois toutes les 8 heures, y compris après une erreur ou un redémarrage. Un changement de filtres réinitialise silencieusement la référence des VIN au prochain contrôle autorisé.",
         "data": {
           "model": "Modèle",
           "condition": "État du véhicule",
@@ -67,7 +63,6 @@
           "longitude": "Longitude",
           "sort": "Trier par",
           "order": "Ordre",
-          "interval_minutes": "Intervalle de vérification",
           "notify_enabled": "Activer les notifications",
           "notify_service": "Service de notification"
         },
@@ -79,11 +74,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossible d'interroger l'inventaire Tesla. La requête a échoué ou Tesla a renvoyé une réponse invalide.",
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
       "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
-      "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
-      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie.",
       "invalid_coordinates": "Saisissez une latitude entre -90 et 90 ou une longitude entre -180 et 180, sans valeur infinie.",
       "invalid_zip": "Saisissez un code postal français à cinq chiffres.",
       "invalid_notify_service": "Saisissez un service notify, par exemple notify.mobile_app_iphone."
@@ -100,7 +92,7 @@
     },
     "button": {
       "refresh": {
-        "name": "Actualiser maintenant"
+        "name": "Actualiser (délai de 8 h)"
       }
     }
   }

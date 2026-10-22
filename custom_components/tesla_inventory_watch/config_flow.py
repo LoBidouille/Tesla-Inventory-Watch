@@ -8,7 +8,6 @@ import re
 from typing import Any
 
 import voluptuous as vol
-from aiohttp import CookieJar
 
 from homeassistant.config_entries import (
     ConfigFlow,
@@ -16,7 +15,6 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -27,7 +25,6 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .api import TeslaInventoryApi, TeslaInventoryError, TeslaInventoryRateLimited
 from .const import (
     CONF_CATEGORIES,
     CONF_CONDITION,
@@ -66,8 +63,6 @@ from .const import (
     DEFAULT_YEARS,
     DEFAULT_ZIP,
     DOMAIN,
-    MAX_INTERVAL,
-    MIN_INTERVAL,
 )
 
 
@@ -87,7 +82,7 @@ def _defaults(values: dict[str, Any] | None = None) -> dict[str, Any]:
         CONF_RANGE: values.get(CONF_RANGE, DEFAULT_RANGE),
         CONF_LATITUDE: values.get(CONF_LATITUDE, DEFAULT_LATITUDE),
         CONF_LONGITUDE: values.get(CONF_LONGITUDE, DEFAULT_LONGITUDE),
-        CONF_INTERVAL: values.get(CONF_INTERVAL, DEFAULT_INTERVAL),
+        CONF_INTERVAL: DEFAULT_INTERVAL,
         CONF_NOTIFY_ENABLED: values.get(CONF_NOTIFY_ENABLED, DEFAULT_NOTIFY_ENABLED),
         CONF_NOTIFY_SERVICE: values.get(CONF_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE),
         CONF_SORT: values.get(CONF_SORT, DEFAULT_SORT),
@@ -205,15 +200,6 @@ def _schema(hass, values: dict[str, Any] | None = None) -> vol.Schema:
                     mode=SelectSelectorMode.DROPDOWN,
                 )
             ),
-            vol.Required(CONF_INTERVAL, default=cfg[CONF_INTERVAL]): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_INTERVAL,
-                    max=MAX_INTERVAL,
-                    step=1,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="min",
-                )
-            ),
             vol.Required(
                 CONF_NOTIFY_ENABLED, default=bool(cfg[CONF_NOTIFY_ENABLED])
             ): bool,
@@ -263,22 +249,6 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     return errors
 
 
-async def _async_check_inventory(hass, config: dict[str, Any]) -> dict[str, str]:
-    """Validate connectivity with one temporary, cookie-preserving session."""
-    session = async_create_clientsession(
-        hass, auto_cleanup=False, cookie_jar=CookieJar(), trust_env=True
-    )
-    try:
-        await TeslaInventoryApi(session, config).async_get_inventory()
-    except TeslaInventoryRateLimited:
-        return {"base": "rate_limited"}
-    except TeslaInventoryError as err:
-        return {"base": "forbidden" if err.status == 403 else "cannot_connect"}
-    finally:
-        session.detach()
-    return {}
-
-
 class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle Tesla Inventory Watch setup."""
 
@@ -295,10 +265,9 @@ class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
             user_input[CONF_NOTIFY_SERVICE] = str(
                 user_input.get(CONF_NOTIFY_SERVICE, "")
             ).strip()
+            user_input[CONF_INTERVAL] = DEFAULT_INTERVAL
             errors = _validate(user_input)
 
-            if not errors:
-                errors = await _async_check_inventory(self.hass, user_input)
             if not errors:
                 model = str(user_input[CONF_MODEL]).upper()
                 zip_code = str(user_input[CONF_ZIP]).strip()
@@ -328,7 +297,7 @@ class TeslaInventoryOptionsFlow(OptionsFlowWithReload):
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
-        """Edit filters, notifications and polling interval."""
+        """Edit filters and notifications without extra network requests."""
         current = {**self.config_entry.data, **self.config_entry.options}
         errors: dict[str, str] = {}
 
@@ -336,14 +305,9 @@ class TeslaInventoryOptionsFlow(OptionsFlowWithReload):
             user_input[CONF_NOTIFY_SERVICE] = str(
                 user_input.get(CONF_NOTIFY_SERVICE, "")
             ).strip()
+            user_input[CONF_INTERVAL] = DEFAULT_INTERVAL
             errors = _validate(user_input)
 
-            if not errors:
-                # Notification/interval/sort edits must remain possible during an outage.
-                old_signature = TeslaInventoryApi(None, _defaults(current)).signature
-                new_signature = TeslaInventoryApi(None, _defaults(user_input)).signature
-                if old_signature != new_signature:
-                    errors = await _async_check_inventory(self.hass, user_input)
             if not errors:
                 user_input[CONF_ZIP] = str(user_input[CONF_ZIP]).strip()
                 return self.async_create_entry(data=user_input)

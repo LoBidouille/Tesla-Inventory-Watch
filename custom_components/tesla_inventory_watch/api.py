@@ -8,7 +8,7 @@ import hashlib
 import json
 from typing import Any
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import ClientError, ClientTimeout
 
 from .const import (
     CONF_CATEGORIES,
@@ -65,7 +65,7 @@ def _retry_after(value: str) -> int:
 class TeslaInventoryApi:
     """Client for Tesla's inventory endpoint."""
 
-    def __init__(self, session: ClientSession, config: dict[str, Any]) -> None:
+    def __init__(self, session: Any, config: dict[str, Any]) -> None:
         self._session = session
         self._config = config
 
@@ -152,11 +152,6 @@ class TeslaInventoryApi:
     @staticmethod
     def _browser_headers() -> dict[str, str]:
         return {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/153.0.0.0 Safari/537.36"
-            ),
             "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",

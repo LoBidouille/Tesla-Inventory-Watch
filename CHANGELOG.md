@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- Remplace le client HTTP standard par `curl-cffi==0.16.3` avec empreinte TLS/HTTP Chrome et en-têtes cohérents, sans désactiver TLS.
+- Charge la dépendance native dans un exécuteur au démarrage de l’entrée, sans import natif lors de la découverte du formulaire.
+- Fixe la cadence à huit heures, soit au maximum trois recherches complètes par 24 heures et par entrée. Les anciens intervalles sont ignorés.
+- Enregistre la prochaine tentative avant l’appel réseau, y compris en cas d’erreur ou d’annulation ; respecte aussi un délai Tesla plus long.
+- Conserve cette échéance et le dernier résultat après redémarrage/rechargement. Le bouton ne contourne pas la cadence et ne rejoue pas les alertes.
+- Supprime les requêtes Tesla à la validation des formulaires : le premier contrôle est réalisé en arrière-plan après enregistrement.
+- Ajoute les attributs `last_checked` et `next_check` et des tests de cadence, redémarrage, concurrence et transport Chrome.
+- Vérifie les tests avec Home Assistant 2026.3.0 et 2026.10.2. L’empreinte Chrome ne garantit pas la levée d’un refus Tesla 403.
+
 ## 0.2.5
 
 - Corrige la pagination au-delà de 96 véhicules et les totaux Tesla renvoyés sous forme de texte.

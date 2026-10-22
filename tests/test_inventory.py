@@ -159,17 +159,25 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
 
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        self.clock = 1700000000.0
+        self.clock_patch = patch('custom_components.tesla_inventory_watch.coordinator.time.time', side_effect=lambda: self.clock)
+        self.clock_patch.start()
+        self.addCleanup(self.clock_patch.stop)
         self.hass = HomeAssistant('/tmp/tesla-inventory-tests')
         self.api = SimpleNamespace(signature='filters', async_get_inventory=AsyncMock())
         self.entry = SimpleNamespace(entry_id='test', async_on_unload=Mock())
         self.coordinator = TeslaInventoryCoordinator(self.hass, self.entry, self.api, _defaults())
+        self.assertEqual(self.coordinator._store.key, 'tesla_inventory_watch.test')
         self.coordinator._store = SimpleNamespace(async_save=AsyncMock(), async_load=AsyncMock(return_value=None))
+        self.coordinator._async_verify_saved_state = AsyncMock()
 
     async def asyncTearDown(self):
         await self.coordinator.async_shutdown()
         await self.hass.async_stop()
 
-    async def poll(self, *vins):
+    async def poll(self, *vins, advance=True):
+        if advance:
+            self.clock += 8 * 3600
         self.api.async_get_inventory.return_value = {'total': len(vins), 'vehicles': [{'vin': vin} for vin in vins]}
         return await self.coordinator._async_update_data()
 
@@ -189,7 +197,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_storage_failure_does_not_consume_alert(self):
         await self.poll('a')
-        self.coordinator._store.async_save.side_effect = OSError('disk full')
+        self.coordinator._store.async_save.side_effect = [None, OSError('disk full')]
         with self.assertRaises(OSError):
             await self.poll('a', 'b')
         self.assertEqual(self.coordinator._previous_vins, {'a'})
@@ -204,16 +212,89 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_error_preserves_baseline(self):
         await self.poll('a')
+        self.clock += 8 * 3600
         self.api.async_get_inventory.side_effect = TeslaInventoryRateLimited(900)
         with self.assertRaises(UpdateFailed) as err:
             await self.coordinator._async_update_data()
-        self.assertEqual(err.exception.retry_after, 900)
+        self.assertEqual(err.exception.retry_after, 8 * 3600)
         self.assertEqual(self.coordinator._previous_vins, {'a'})
 
     async def test_saved_baseline_survives_restart(self):
         self.coordinator._store.async_load.return_value = {'initialized': True, 'current_vins': ['a'], 'signature': 'filters'}
         await self.coordinator._async_setup()
         self.assertEqual((await self.poll('a', 'b'))['new_vehicles'], [{'vin': 'b'}])
+
+    async def test_budget_allows_only_three_checks_in_24_hours(self):
+        for hour in range(24):
+            await self.poll('a', advance=False)
+            self.clock += 3600
+        self.assertEqual(self.api.async_get_inventory.await_count, 3)
+
+    async def test_manual_refresh_returns_cache_without_network_or_old_alerts(self):
+        await self.poll('a')
+        await self.poll('a', 'b')
+        result = await self.poll('a', 'b', 'c', advance=False)
+        self.assertEqual(self.api.async_get_inventory.await_count, 2)
+        self.assertEqual(result['new_vehicles'], [])
+        self.assertEqual(len(result['vehicles']), 2)
+
+    async def test_budget_survives_restart(self):
+        await self.poll('a')
+        persisted = self.coordinator._store.async_save.call_args.args[0]
+        self.coordinator._store.async_load.return_value = persisted
+        self.coordinator._next_attempt = 0
+        self.coordinator._cached_data = None
+        await self.coordinator._async_setup()
+        await self.poll('b', advance=False)
+        self.assertEqual(self.api.async_get_inventory.await_count, 1)
+
+    async def test_forbidden_consumes_attempt_and_survives_restart(self):
+        self.api.async_get_inventory.side_effect = TeslaInventoryError('denied', 403)
+        for _ in range(2):
+            with self.assertRaises(UpdateFailed) as error:
+                await self.coordinator._async_update_data()
+            self.assertEqual(error.exception.retry_after, 8 * 3600)
+        persisted = self.coordinator._store.async_save.call_args.args[0]
+        self.coordinator._store.async_load.return_value = persisted
+        await self.coordinator._async_setup()
+        with self.assertRaises(UpdateFailed):
+            await self.coordinator._async_update_data()
+        self.assertEqual(self.api.async_get_inventory.await_count, 1)
+        self.assertFalse(persisted['initialized'])
+
+    async def test_long_tesla_retry_after_is_respected(self):
+        self.api.async_get_inventory.side_effect = TeslaInventoryRateLimited(12 * 3600)
+        with self.assertRaises(UpdateFailed) as error:
+            await self.coordinator._async_update_data()
+        self.assertEqual(error.exception.retry_after, 12 * 3600)
+
+    async def test_filter_change_does_not_bypass_budget_or_show_old_search(self):
+        await self.poll('a')
+        self.api.signature = 'new filters'
+        with self.assertRaises(UpdateFailed):
+            await self.poll('b', advance=False)
+        self.assertEqual(self.api.async_get_inventory.await_count, 1)
+        result = await self.poll('b')
+        self.assertTrue(result['baseline_reset'])
+        self.assertEqual(result['new_vehicles'], [])
+
+    async def test_failed_reservation_does_not_call_tesla(self):
+        self.coordinator._store.async_save.side_effect = OSError('disk full')
+        with self.assertRaises(OSError):
+            await self.poll('a')
+        self.api.async_get_inventory.assert_not_awaited()
+
+    async def test_unpersisted_checkpoint_does_not_call_tesla(self):
+        self.coordinator._async_verify_saved_state.side_effect = OSError('checkpoint mismatch')
+        with self.assertRaises(OSError):
+            await self.poll('a')
+        self.api.async_get_inventory.assert_not_awaited()
+
+    async def test_concurrent_refreshes_share_one_attempt(self):
+        import asyncio
+        self.api.async_get_inventory.return_value = {'total': 1, 'vehicles': [{'vin': 'a'}]}
+        await asyncio.gather(*(self.coordinator._async_update_data() for _ in range(3)))
+        self.assertEqual(self.api.async_get_inventory.await_count, 1)
 
     async def test_only_new_vins_send_notifications(self):
         self.coordinator.config.update(notify_enabled=True, notify_service='notify.mobile_app_test')
@@ -252,45 +333,37 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
         flow = TeslaInventoryConfigFlow()
         flow.hass = self.hass
         result = await flow.async_step_user()
-        self.assertEqual(_validate(result['data_schema'](_defaults())), {})
+        values = _defaults()
+        values.pop('interval_minutes')
+        self.assertEqual(_validate(result['data_schema'](values)), {})
 
-    async def test_flow_errors_and_session_detach(self):
+    async def test_successful_config_flow_has_no_network_call(self):
         flow = TeslaInventoryConfigFlow()
         flow.hass = self.hass
-        for error, expected in ((TeslaInventoryRateLimited(), 'rate_limited'), (TeslaInventoryError('denied',403), 'forbidden'), (TeslaInventoryError('invalid'), 'cannot_connect')):
-            session = Mock()
-            with patch('custom_components.tesla_inventory_watch.config_flow.async_create_clientsession', return_value=session), patch.object(TeslaInventoryApi, 'async_get_inventory', side_effect=error):
-                result = await flow.async_step_user(_defaults())
-            self.assertEqual(result['errors']['base'], expected)
-            session.detach.assert_called_once()
-
-    async def test_successful_config_flow(self):
-        flow = TeslaInventoryConfigFlow()
-        flow.hass = self.hass
-        with patch('custom_components.tesla_inventory_watch.config_flow._async_check_inventory', return_value={}):
+        with patch.object(TeslaInventoryApi, 'async_get_inventory') as fetch:
             result = await flow.async_step_user(_defaults())
+        fetch.assert_not_called()
         self.assertEqual(result['type'], 'create_entry')
         self.assertEqual(result['data']['zip'], '13220')
+        self.assertEqual(result['data']['interval_minutes'], 480)
 
-    async def test_notification_options_do_not_require_tesla(self):
-        flow = TeslaInventoryOptionsFlow()
-        flow.hass = self.hass
-        with patch.object(TeslaInventoryOptionsFlow, 'config_entry', new_callable=unittest.mock.PropertyMock) as entry:
-            entry.return_value = SimpleNamespace(data=_defaults(), options={})
-            with patch('custom_components.tesla_inventory_watch.config_flow._async_check_inventory', return_value={}) as check:
-                result = await flow.async_step_init(dict(_defaults(), interval_minutes=30))
-            check.assert_not_called()
-        self.assertEqual(result['type'], 'create_entry')
+    async def test_all_options_are_saved_without_calling_tesla(self):
+        for changes in ({'interval_minutes': 5}, {'price_max': 60000}):
+            flow = TeslaInventoryOptionsFlow()
+            flow.hass = self.hass
+            with patch.object(TeslaInventoryOptionsFlow, 'config_entry', new_callable=unittest.mock.PropertyMock) as entry:
+                entry.return_value = SimpleNamespace(data=_defaults(), options={})
+                with patch.object(TeslaInventoryApi, 'async_get_inventory') as fetch:
+                    result = await flow.async_step_init(dict(_defaults(), **changes))
+            fetch.assert_not_called()
+            self.assertEqual(result['type'], 'create_entry')
+            self.assertEqual(result['data']['interval_minutes'], 480)
 
-    async def test_filter_options_require_tesla(self):
-        flow = TeslaInventoryOptionsFlow()
+    async def test_configuration_form_does_not_offer_short_intervals(self):
+        flow = TeslaInventoryConfigFlow()
         flow.hass = self.hass
-        with patch.object(TeslaInventoryOptionsFlow, 'config_entry', new_callable=unittest.mock.PropertyMock) as entry:
-            entry.return_value = SimpleNamespace(data=_defaults(), options={})
-            with patch('custom_components.tesla_inventory_watch.config_flow._async_check_inventory', return_value={'base':'cannot_connect'}) as check:
-                result = await flow.async_step_init(dict(_defaults(), price_max=60000))
-            check.assert_awaited_once()
-        self.assertEqual(result['errors'], {'base': 'cannot_connect'})
+        result = await flow.async_step_user()
+        self.assertNotIn('interval_minutes', {str(key) for key in result['data_schema'].schema})
 
 
 if __name__ == '__main__':

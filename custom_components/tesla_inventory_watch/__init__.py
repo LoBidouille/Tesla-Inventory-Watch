@@ -7,9 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from aiohttp import CookieJar
-
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from .api import TeslaInventoryApi
 from .const import (
@@ -22,6 +20,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import TeslaInventoryCoordinator
+from .transport import async_create_browser_session
 
 
 @dataclass
@@ -40,15 +39,17 @@ async def async_setup_entry(
 ) -> bool:
     """Set up Tesla Inventory Watch from a config entry."""
     config: dict[str, Any] = {**entry.data, **entry.options}
-    config.setdefault(CONF_INTERVAL, DEFAULT_INTERVAL)
+    config[CONF_INTERVAL] = DEFAULT_INTERVAL
     config.setdefault(CONF_NOTIFY_ENABLED, DEFAULT_NOTIFY_ENABLED)
     config.setdefault(CONF_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE)
 
-    websession = async_create_clientsession(
-        hass,
-        cookie_jar=CookieJar(),
-        trust_env=True,
-    )
+    try:
+        websession = await async_create_browser_session(hass)
+    except (ImportError, OSError) as err:
+        raise ConfigEntryNotReady(
+            "Unable to load Chrome HTTP client; check curl-cffi installation"
+        ) from err
+    entry.async_on_unload(websession.close)
     api = TeslaInventoryApi(websession, config)
     coordinator = TeslaInventoryCoordinator(hass, entry, api, config)
 
