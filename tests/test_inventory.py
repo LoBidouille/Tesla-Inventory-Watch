@@ -308,7 +308,9 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
                 reason = reason.__cause__
             self.assertEqual(reason.translation_key, 'rate_limited')
             self.assertIn('next_check', reason.translation_placeholders)
-            self.assertIn(reason.translation_placeholders['next_check'], str(reason))
+            # The isolated test has no HA translation cache; the coordinator
+            # still supplies a complete fallback for logs and older HA versions.
+            self.assertIn(reason.translation_placeholders['next_check'], str(self.coordinator.last_exception))
             # The next setup invocation reloads the same saved state.
             self.coordinator._store.async_load.return_value = self.coordinator._store.async_save.call_args.args[0]
         self.api.async_get_inventory.assert_awaited_once()
