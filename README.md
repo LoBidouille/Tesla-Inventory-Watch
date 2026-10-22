@@ -94,3 +94,11 @@ Pour vérifier l’intégration en fonctionnement, utiliser une instance Home As
 - La pagination est limitée à 100 pages de 24 résultats par actualisation. Une recherche dépassant cette limite échoue explicitement : affiner alors les filtres.
 - Les modifications du tri et des notifications ne réinitialisent pas la référence des VIN. Les changements de filtres le font silencieusement.
 - Lors du premier passage à la version 0.2.5, la nouvelle signature réinitialise silencieusement la référence une fois.
+
+### « Tesla rate limit reached » après enregistrement
+
+Le formulaire enregistre les critères avant le premier accès Tesla. Un échec ensuite signifie que les critères sont conservés mais que l’inventaire n’a pas pu être chargé. Le message `Tesla rate limit reached` correspond au refus HTTP 429 de Tesla ; il ne prouve pas que cette intégration a envoyé trop de requêtes, car la limitation peut aussi dépendre de l’adresse IP ou du client.
+
+À partir de la version 0.3.1, l’état de l’intégration indique la date/heure du prochain appel autorisé, dans le fuseau configuré dans Home Assistant. Les « nouveaux essais » de configuration Home Assistant relisent l’échéance locale sans contacter Tesla avant ce moment. Attendre au moins huit heures après la tentative refusée, ou davantage si Tesla a demandé un délai supérieur. Ne pas supprimer/recréer l’entrée : cela effacerait sa propre échéance. Une mise à jour ou un redémarrage conserve l’attente enregistrée.
+
+La compatibilité Chrome ne garantit pas l’accès : si le premier contrôle autorisé après l’attente renvoie encore 429, il faut considérer la collecte directe comme bloquée sur cette installation. Aucun test depuis un autre réseau ne permet de garantir la levée du blocage.

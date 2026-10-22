@@ -268,6 +268,51 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             await self.coordinator._async_update_data()
         self.assertEqual(error.exception.retry_after, 12 * 3600)
 
+    async def test_rate_limit_error_includes_local_deadline(self):
+        self.hass.config.time_zone = 'Europe/Paris'
+        self.api.async_get_inventory.side_effect = TeslaInventoryRateLimited(300)
+        with self.assertRaises(UpdateFailed) as error:
+            await self.coordinator._async_update_data()
+        self.assertEqual(error.exception.translation_key, 'rate_limited')
+        next_check = error.exception.translation_placeholders['next_check']
+        self.assertEqual(datetime.fromisoformat(next_check).timestamp(), self.clock + 8 * 3600)
+        self.assertTrue(next_check.endswith('+01:00'))
+        self.assertIn('HTTP 429', str(error.exception))
+        self.assertIn(next_check, str(error.exception))
+
+    async def test_old_rate_limit_state_keeps_its_deadline(self):
+        deadline = self.clock + 3600
+        self.coordinator._store.async_load.return_value = {
+            'next_attempt': deadline,
+            'last_error': 'Tesla inventory request failed: Tesla rate limit reached',
+        }
+        await self.coordinator._async_setup()
+        with self.assertRaises(UpdateFailed) as error:
+            await self.coordinator._async_update_data()
+        self.assertEqual(error.exception.translation_key, 'rate_limited')
+        self.assertEqual(error.exception.retry_after, 3600)
+        self.assertEqual(self.coordinator._next_attempt, deadline)
+        self.api.async_get_inventory.assert_not_awaited()
+
+    async def test_setup_retry_preserves_translated_rate_limit(self):
+        from homeassistant.config_entries import ConfigEntryState
+        from homeassistant.exceptions import ConfigEntryNotReady
+        self.entry.state = ConfigEntryState.SETUP_IN_PROGRESS
+        self.api.async_get_inventory.side_effect = TeslaInventoryRateLimited(300)
+        for _ in range(2):
+            with self.assertRaises(ConfigEntryNotReady) as error:
+                await self.coordinator.async_config_entry_first_refresh()
+            # Older HA versions preserve the coordinator reason as the cause.
+            reason = error.exception
+            if reason.translation_key is None:
+                reason = reason.__cause__
+            self.assertEqual(reason.translation_key, 'rate_limited')
+            self.assertIn('next_check', reason.translation_placeholders)
+            self.assertIn(reason.translation_placeholders['next_check'], str(reason))
+            # The next setup invocation reloads the same saved state.
+            self.coordinator._store.async_load.return_value = self.coordinator._store.async_save.call_args.args[0]
+        self.api.async_get_inventory.assert_awaited_once()
+
     async def test_filter_change_does_not_bypass_budget_or_show_old_search(self):
         await self.poll('a')
         self.api.signature = 'new filters'

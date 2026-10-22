@@ -43,7 +43,7 @@ class TeslaInventoryRateLimited(TeslaInventoryError):
     """Tesla rate limit exception."""
 
     def __init__(self, retry_after: int = 300) -> None:
-        super().__init__("Tesla rate limit reached", status=429)
+        super().__init__("Tesla rate limit reached (HTTP 429)", status=429)
         self.retry_after = retry_after
 
 

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import math
 import time
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -60,6 +61,7 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._initialized = False
         self._next_attempt = 0.0
         self._last_error: str | None = None
+        self._last_status: int | None = None
         self._cached_data: dict[str, Any] | None = None
         self._poll_lock = asyncio.Lock()
 
@@ -79,6 +81,10 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._initialized = bool(stored.get("initialized", False))
             self._next_attempt = float(stored.get("next_attempt", 0))
             self._last_error = stored.get("last_error")
+            self._last_status = stored.get("last_status")
+            # Preserve the wait and identify 429s saved by version 0.3.0.
+            if self._last_status is None and "Tesla rate limit reached" in (self._last_error or ""):
+                self._last_status = 429
             cached = stored.get("cached_data")
             if isinstance(cached, dict) and isinstance(cached.get("vehicles"), list):
                 self._cached_data = cached
@@ -90,6 +96,7 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "signature": self._stored_signature,
             "next_attempt": self._next_attempt,
             "last_error": self._last_error,
+            "last_status": self._last_status,
             "cached_data": self._cached_data,
         }
 
@@ -107,6 +114,26 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.update_interval = timedelta(seconds=remaining)
         return remaining
 
+    def _deferred_error(self) -> UpdateFailed:
+        next_check = datetime.fromtimestamp(self._next_attempt, timezone.utc).astimezone(
+            ZoneInfo(self.hass.config.time_zone)
+        ).isoformat(timespec="seconds")
+        if self._last_status == 429:
+            key = "rate_limited"
+            detail = "Tesla rate limit reached (HTTP 429)"
+            placeholders = {"next_check": next_check}
+        else:
+            key = "request_delayed"
+            detail = self._last_error or "Next Tesla check is not due yet"
+            placeholders = {"next_check": next_check, "reason": detail}
+        return UpdateFailed(
+            f"{detail}. No Tesla request before {next_check}; Home Assistant setup retries are local.",
+            retry_after=self._remaining(),
+            translation_domain=DOMAIN,
+            translation_key=key,
+            translation_placeholders=placeholders,
+        )
+
     async def _async_update_data(self) -> dict[str, Any]:
         # A manual refresh, reload or failed setup must not bypass the budget.
         async with self._poll_lock:
@@ -114,7 +141,7 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_poll(self) -> dict[str, Any]:
         if time.time() < self._next_attempt:
-            remaining = self._remaining()
+            self._remaining()
             if (
                 self._cached_data is not None
                 and self._stored_signature == self.api.signature
@@ -122,10 +149,7 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ):
                 # Retained data may be displayed, but never resend old alerts.
                 return {**self._cached_data, "new_vehicles": [], "baseline_reset": False}
-            raise UpdateFailed(
-                self._last_error or "Next Tesla check is not due yet",
-                retry_after=remaining,
-            )
+            raise self._deferred_error()
 
         # Reserve and persist the attempt BEFORE any network operation, including
         # failures and cancellation. Restarting HA does not reset the eight hours.
@@ -134,17 +158,20 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             **self._state(),
             "next_attempt": next_attempt,
             "last_error": "Previous Tesla check did not complete",
+            "last_status": None,
         })
         self._next_attempt = next_attempt
         self._last_error = "Previous Tesla check did not complete"
+        self._last_status = None
         try:
             inventory = await self.api.async_get_inventory()
         except TeslaInventoryError as err:
             if isinstance(err, TeslaInventoryRateLimited):
                 self._next_attempt = max(self._next_attempt, time.time() + err.retry_after)
             self._last_error = f"Tesla inventory request failed: {err}"
+            self._last_status = err.status
             await self._async_save_state(self._state())
-            raise UpdateFailed(self._last_error, retry_after=self._remaining()) from err
+            raise self._deferred_error() from err
 
         vehicles: list[dict[str, Any]] = inventory["vehicles"]
         current_vins = {str(car["vin"]) for car in vehicles if car.get("vin")}
@@ -181,12 +208,14 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "signature": signature,
             "cached_data": data,
             "last_error": None,
+            "last_status": None,
         })
         self._previous_vins = baseline
         self._stored_signature = signature
         self._initialized = True
         self._cached_data = data
         self._last_error = None
+        self._last_status = None
         self._remaining()
 
         for vehicle in new_vehicles:

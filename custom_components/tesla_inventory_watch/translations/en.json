@@ -82,5 +82,13 @@
         "name": "Refresh (8-hour limit)"
       }
     }
+  },
+  "exceptions": {
+    "rate_limited": {
+      "message": "Tesla is limiting requests (HTTP 429). No Tesla request before {next_check}. Home Assistant setup retries are local and do not contact Tesla."
+    },
+    "request_delayed": {
+      "message": "{reason}. No Tesla request before {next_check}. Home Assistant setup retries are local."
+    }
   }
 }

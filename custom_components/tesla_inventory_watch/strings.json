@@ -95,5 +95,13 @@
         "name": "Actualiser (délai de 8 h)"
       }
     }
+  },
+  "exceptions": {
+    "rate_limited": {
+      "message": "Tesla limite les requêtes (HTTP 429). Aucun appel Tesla avant le {next_check}. Les nouveaux essais de configuration Home Assistant sont locaux et ne contactent pas Tesla."
+    },
+    "request_delayed": {
+      "message": "{reason}. Aucun appel Tesla avant le {next_check}. Les nouveaux essais de configuration Home Assistant sont locaux."
+    }
   }
 }

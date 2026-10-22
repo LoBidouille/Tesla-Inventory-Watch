@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util.file import WriteError
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from custom_components.tesla_inventory_watch.api import TeslaInventoryRateLimited
 
 from custom_components.tesla_inventory_watch.config_flow import _defaults
 from custom_components.tesla_inventory_watch.coordinator import TeslaInventoryCoordinator
@@ -40,6 +42,22 @@ class StorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cached['total'], 1)
         self.assertEqual(cached['new_vehicles'], [])
         self.assertEqual(second._next_attempt, first._next_attempt)
+        self.api.async_get_inventory.assert_awaited_once()
+
+    async def test_rate_limit_retries_and_reload_do_not_call_tesla(self):
+        self.api.async_get_inventory.side_effect = TeslaInventoryRateLimited(300)
+        first = self.coordinator()
+        await first._async_setup()
+        with self.assertRaises(UpdateFailed):
+            await first._async_update_data()
+        second = self.coordinator()
+        await second._async_setup()
+        for _ in range(3):
+            with self.assertRaises(UpdateFailed) as error:
+                await second._async_update_data()
+            self.assertEqual(error.exception.translation_key, 'rate_limited')
+            self.assertGreater(error.exception.retry_after, 7 * 3600)
+        self.assertEqual(first._next_attempt, second._next_attempt)
         self.api.async_get_inventory.assert_awaited_once()
 
     async def test_storage_write_error_prevents_request(self):

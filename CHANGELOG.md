@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Explique les refus HTTP 429 dans l’état de l’intégration et affiche la date/heure du prochain appel autorisé dans le fuseau Home Assistant.
+- Distingue les nouveaux essais de configuration locaux des appels réseau Tesla, sans modifier la limite de trois contrôles par jour.
+- Conserve les échéances et reconnaît les erreurs 429 déjà enregistrées par la version 0.3.0.
+- Vérifie qu’un refus 429, les essais de configuration suivants et un rechargement ne produisent qu’un seul appel Tesla pendant l’attente.
+- Cette version améliore le diagnostic ; elle ne supprime pas une limitation imposée par Tesla.
+
 ## 0.3.0
 
 - Remplace le client HTTP standard par `curl-cffi==0.16.3` avec empreinte TLS/HTTP Chrome et en-têtes cohérents, sans désactiver TLS.
