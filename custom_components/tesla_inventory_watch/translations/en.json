@@ -32,7 +32,10 @@
       "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
       "notification_service_required": "Choose a notification service or disable notifications.",
       "forbidden": "Tesla rejected the request (HTTP 403). Try again in a few minutes; if it persists, check Home Assistant logs.",
-      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again."
+      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again.",
+      "invalid_coordinates": "Enter a finite latitude between -90 and 90 or longitude between -180 and 180.",
+      "invalid_zip": "Enter a French postcode with five digits.",
+      "invalid_notify_service": "Enter a notify service, for example notify.mobile_app_iphone."
     }
   },
   "options": {
@@ -67,7 +70,10 @@
       "max_lower_than_min": "Maximum value must be greater than or equal to minimum value.",
       "notification_service_required": "Choose a notification service or disable notifications.",
       "forbidden": "Tesla rejected the request (HTTP 403). Try again in a few minutes; if it persists, check Home Assistant logs.",
-      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again."
+      "rate_limited": "Tesla is temporarily rate-limiting requests (HTTP 429). Wait a few minutes and try again.",
+      "invalid_coordinates": "Enter a finite latitude between -90 and 90 or longitude between -180 and 180.",
+      "invalid_zip": "Enter a French postcode with five digits.",
+      "invalid_notify_service": "Enter a notify service, for example notify.mobile_app_iphone."
     }
   },
   "entity": {

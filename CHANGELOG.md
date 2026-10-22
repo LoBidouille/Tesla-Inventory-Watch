@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.5
+
+- Corrige la pagination au-delà de 96 véhicules et les totaux Tesla renvoyés sous forme de texte.
+- Refuse les réponses invalides, les pages répétées et les inventaires incomplets au lieu de publier un état trompeur.
+- Déduplique les véhicules par VIN.
+- Respecte les délais `Retry-After`, y compris les dates HTTP et les délais supérieurs à une heure.
+- Évite un appel API supplémentaire si la page Tesla renvoie déjà HTTP 429.
+- Prend en charge les proxys HTTP configurés dans l’environnement.
+- Permet de modifier notifications, tri et intervalle sans appel Tesla si les filtres restent identiques.
+- Ne réinitialise plus les VIN lorsque seul le tri ou l’ordre des sélections change.
+- Valide coordonnées, code postal français et format du service de notification.
+- Préserve la référence en mémoire si son enregistrement échoue.
+- Ajoute une suite de tests de régression et son exécution dans GitHub Actions.
+
+La première synchronisation après mise à jour rétablit silencieusement la référence des VIN, car le calcul de signature a changé.
+
 ## 0.2.4
 
 - Corrige le crash « 500 Internal Server Error » du Config Flow.

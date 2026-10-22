@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import date
+import math
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -243,7 +245,38 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     ).strip():
         errors[CONF_NOTIFY_SERVICE] = "notification_service_required"
 
+    for field, limit in ((CONF_LATITUDE, 90), (CONF_LONGITUDE, 180)):
+        try:
+            value = float(user_input[field])
+            if not math.isfinite(value) or not -limit <= value <= limit:
+                errors[field] = "invalid_coordinates"
+        except (TypeError, ValueError):
+            errors[field] = "invalid_coordinates"
+
+    if not re.fullmatch(r"\d{5}", str(user_input[CONF_ZIP]).strip()):
+        errors[CONF_ZIP] = "invalid_zip"
+
+    service = str(user_input.get(CONF_NOTIFY_SERVICE, "")).strip()
+    if service and not re.fullmatch(r"(?:notify\.)?[a-z0-9_]+", service):
+        errors[CONF_NOTIFY_SERVICE] = "invalid_notify_service"
+
     return errors
+
+
+async def _async_check_inventory(hass, config: dict[str, Any]) -> dict[str, str]:
+    """Validate connectivity with one temporary, cookie-preserving session."""
+    session = async_create_clientsession(
+        hass, auto_cleanup=False, cookie_jar=CookieJar(), trust_env=True
+    )
+    try:
+        await TeslaInventoryApi(session, config).async_get_inventory()
+    except TeslaInventoryRateLimited:
+        return {"base": "rate_limited"}
+    except TeslaInventoryError as err:
+        return {"base": "forbidden" if err.status == 403 else "cannot_connect"}
+    finally:
+        session.detach()
+    return {}
 
 
 class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -265,31 +298,15 @@ class TeslaInventoryConfigFlow(ConfigFlow, domain=DOMAIN):
             errors = _validate(user_input)
 
             if not errors:
-                try:
-                    websession = async_create_clientsession(
-                        self.hass,
-                        auto_cleanup=False,
-                        cookie_jar=CookieJar(),
-                    )
-                    try:
-                        api = TeslaInventoryApi(websession, user_input)
-                        await api.async_get_inventory()
-                    finally:
-                        websession.detach()
-                except TeslaInventoryRateLimited:
-                    errors["base"] = "rate_limited"
-                except TeslaInventoryError as err:
-                    if getattr(err, "status", None) == 403:
-                        errors["base"] = "forbidden"
-                    else:
-                        errors["base"] = "cannot_connect"
-                else:
-                    model = str(user_input[CONF_MODEL]).upper()
-                    zip_code = str(user_input[CONF_ZIP])
-                    return self.async_create_entry(
-                        title=f"Tesla {model} - {zip_code}",
-                        data=user_input,
-                    )
+                errors = await _async_check_inventory(self.hass, user_input)
+            if not errors:
+                model = str(user_input[CONF_MODEL]).upper()
+                zip_code = str(user_input[CONF_ZIP]).strip()
+                user_input[CONF_ZIP] = zip_code
+                return self.async_create_entry(
+                    title=f"Tesla {model} - {zip_code}",
+                    data=user_input,
+                )
 
         return self.async_show_form(
             step_id="user",
@@ -322,26 +339,14 @@ class TeslaInventoryOptionsFlow(OptionsFlowWithReload):
             errors = _validate(user_input)
 
             if not errors:
-                try:
-                    websession = async_create_clientsession(
-                        self.hass,
-                        auto_cleanup=False,
-                        cookie_jar=CookieJar(),
-                    )
-                    try:
-                        api = TeslaInventoryApi(websession, user_input)
-                        await api.async_get_inventory()
-                    finally:
-                        websession.detach()
-                except TeslaInventoryRateLimited:
-                    errors["base"] = "rate_limited"
-                except TeslaInventoryError as err:
-                    if getattr(err, "status", None) == 403:
-                        errors["base"] = "forbidden"
-                    else:
-                        errors["base"] = "cannot_connect"
-                else:
-                    return self.async_create_entry(data=user_input)
+                # Notification/interval/sort edits must remain possible during an outage.
+                old_signature = TeslaInventoryApi(None, _defaults(current)).signature
+                new_signature = TeslaInventoryApi(None, _defaults(user_input)).signature
+                if old_signature != new_signature:
+                    errors = await _async_check_inventory(self.hass, user_input)
+            if not errors:
+                user_input[CONF_ZIP] = str(user_input[CONF_ZIP]).strip()
+                return self.async_create_entry(data=user_input)
 
         return self.async_show_form(
             step_id="init",

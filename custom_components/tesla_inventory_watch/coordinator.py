@@ -94,11 +94,11 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             or self._stored_signature != signature
         ):
             # First start or filters changed: establish a silent baseline.
+            await self._save_state(current_vins, signature)
             self._previous_vins = current_vins
             self._stored_signature = signature
             self._initialized = True
             baseline_reset = True
-            await self._save_state(current_vins, signature)
 
         else:
             new_vins = current_vins - self._previous_vins
@@ -109,8 +109,8 @@ class TeslaInventoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Protect against a transient empty Tesla response.
             if current_vins or not self._previous_vins:
-                self._previous_vins = current_vins
                 await self._save_state(current_vins, signature)
+                self._previous_vins = current_vins
 
         for vehicle in new_vehicles:
             self.hass.bus.async_fire(EVENT_NEW_VEHICLE, vehicle)

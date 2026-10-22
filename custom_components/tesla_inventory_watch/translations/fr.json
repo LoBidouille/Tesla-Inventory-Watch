@@ -40,7 +40,10 @@
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
       "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
       "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
-      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie."
+      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie.",
+      "invalid_coordinates": "Saisissez une latitude entre -90 et 90 ou une longitude entre -180 et 180, sans valeur infinie.",
+      "invalid_zip": "Saisissez un code postal français à cinq chiffres.",
+      "invalid_notify_service": "Saisissez un service notify, par exemple notify.mobile_app_iphone."
     }
   },
   "options": {
@@ -80,7 +83,10 @@
       "max_lower_than_min": "La valeur maximale doit être supérieure ou égale à la valeur minimale.",
       "notification_service_required": "Choisis un service de notification ou désactive les notifications.",
       "forbidden": "Tesla a refusé la requête (HTTP 403). Réessaie quelques minutes plus tard ; si le problème persiste, consulte les journaux Home Assistant.",
-      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie."
+      "rate_limited": "Tesla limite temporairement les requêtes (HTTP 429). Attends quelques minutes puis réessaie.",
+      "invalid_coordinates": "Saisissez une latitude entre -90 et 90 ou une longitude entre -180 et 180, sans valeur infinie.",
+      "invalid_zip": "Saisissez un code postal français à cinq chiffres.",
+      "invalid_notify_service": "Saisissez un service notify, par exemple notify.mobile_app_iphone."
     }
   },
   "entity": {

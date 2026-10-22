@@ -1,0 +1,2 @@
+# Python 3.14; test against the minimum supported Home Assistant release.
+homeassistant==2026.3.0

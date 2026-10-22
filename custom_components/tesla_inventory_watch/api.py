@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import hashlib
 import json
 from typing import Any
@@ -45,6 +47,21 @@ class TeslaInventoryRateLimited(TeslaInventoryError):
         self.retry_after = retry_after
 
 
+def _retry_after(value: str) -> int:
+    """Accept both delay-seconds and HTTP-date Retry-After values."""
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            seconds = int((retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return 300
+    return max(60, seconds)
+
+
 class TeslaInventoryApi:
     """Client for Tesla's inventory endpoint."""
 
@@ -63,8 +80,14 @@ class TeslaInventoryApi:
     @property
     def signature(self) -> str:
         """Hash only inventory-affecting settings."""
+        payload = self._query_payload(0, 24)
+        # Ordering changes presentation, not which vehicles match the search.
+        payload["query"].pop("arrangeby")
+        payload["query"].pop("order")
+        for key, values in payload["query"]["options"].items():
+            payload["query"]["options"][key] = sorted(set(values))
         raw = json.dumps(
-            self._query_payload(0, 24),
+            payload,
             sort_keys=True,
             separators=(",", ":"),
         )
@@ -160,6 +183,10 @@ class TeslaInventoryApi:
                 timeout=ClientTimeout(total=30),
                 allow_redirects=True,
             ) as response:
+                if response.status == 429:
+                    raise TeslaInventoryRateLimited(
+                        _retry_after(response.headers.get("Retry-After", ""))
+                    )
                 await response.read()
         except (ClientError, TimeoutError):
             # The API call below provides the authoritative error.
@@ -184,7 +211,8 @@ class TeslaInventoryApi:
             "Sec-Fetch-Site": "same-origin",
         }
 
-        for _ in range(4):
+        # Bound network work, but never publish a truncated snapshot as complete.
+        for _ in range(100):
             payload = self._query_payload(offset, page_size)
 
             try:
@@ -204,15 +232,9 @@ class TeslaInventoryApi:
                     status = response.status
 
                     if status == 429:
-                        retry_header = response.headers.get("Retry-After", "")
-                        try:
-                            retry_after = max(
-                                60,
-                                min(3600, int(retry_header)),
-                            )
-                        except (TypeError, ValueError):
-                            retry_after = 300
-                        raise TeslaInventoryRateLimited(retry_after)
+                        raise TeslaInventoryRateLimited(
+                            _retry_after(response.headers.get("Retry-After", ""))
+                        )
 
                     raw = await response.text()
 
@@ -239,31 +261,52 @@ class TeslaInventoryApi:
                     f"{type(err).__name__}: {err}"
                 ) from err
 
+            if not isinstance(data, dict):
+                raise TeslaInventoryError("Tesla response must be a JSON object")
             results = data.get("results")
             if not isinstance(results, list):
                 raise TeslaInventoryError(
                     "Tesla response does not contain a results list"
                 )
 
-            all_results.extend(
-                item for item in results if isinstance(item, dict)
-            )
+            if any(
+                not isinstance(item, dict)
+                or not isinstance(item.get("VIN"), str)
+                or not item["VIN"].strip()
+                for item in results
+            ):
+                raise TeslaInventoryError("Tesla returned a vehicle without a VIN")
 
-            if total is None:
-                raw_total = data.get("total_matches_found")
-                total = (
-                    int(raw_total)
-                    if isinstance(raw_total, (int, float))
-                    else len(results)
-                )
+            if total is None and (raw_total := data.get("total_matches_found")) is not None:
+                try:
+                    total = int(raw_total)
+                except (TypeError, ValueError, OverflowError) as err:
+                    raise TeslaInventoryError("Invalid Tesla inventory total") from err
+                if total < 0:
+                    raise TeslaInventoryError("Invalid Tesla inventory total")
 
-            if len(results) < page_size or len(all_results) >= total:
-                break
-
+            known_vins = {str(car["VIN"]) for car in all_results}
+            unique_results = [car for car in results if str(car["VIN"]) not in known_vins]
+            all_results.extend(unique_results)
             offset += len(results)
+            if not results:
+                if total is not None and offset < total:
+                    raise TeslaInventoryError("Tesla returned an incomplete inventory")
+                break
+            if not unique_results:
+                raise TeslaInventoryError("Tesla repeated an inventory page")
+            if total is not None and offset >= total:
+                break
+            if total is None and len(results) < page_size:
+                break
+        else:
+            raise TeslaInventoryError("Tesla inventory exceeds the pagination limit")
 
-        vehicles = [self._normalize_vehicle(car) for car in all_results]
-        vehicles = [car for car in vehicles if car.get("vin")]
+        # A VIN can occur on multiple pages while the inventory changes.
+        vehicles_by_vin = {
+            str(car["VIN"]): self._normalize_vehicle(car) for car in all_results
+        }
+        vehicles = list(vehicles_by_vin.values())
 
         return {
             "total": total if total is not None else len(vehicles),
@@ -273,7 +316,8 @@ class TeslaInventoryApi:
     def _normalize_vehicle(self, car: dict[str, Any]) -> dict[str, Any]:
         paint = ""
 
-        for option in car.get("OptionCodeData") or []:
+        option_data = car.get("OptionCodeData")
+        for option in option_data if isinstance(option_data, list) else []:
             if isinstance(option, dict) and option.get("group") == "PAINT":
                 paint = str(
                     option.get("name")

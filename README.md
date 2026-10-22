@@ -58,3 +58,27 @@ HACS installe une intégration depuis un **dépôt GitHub public**. Ce dossier e
 ## Licence
 
 MIT.
+
+## Développement et tests
+
+Utiliser Python 3.14 et Home Assistant 2026.3.0 (version minimale annoncée par cette intégration) :
+
+```sh
+python3.14 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m unittest discover -s tests -v
+```
+
+Les tests ne contactent pas Tesla et n’envoient aucune notification réelle. Ils couvrent notamment les formulaires Home Assistant, la pagination, les erreurs réseau, la limitation HTTP 429, la persistance et la détection des nouveaux VIN.
+
+Pour vérifier l’intégration en fonctionnement, utiliser une instance Home Assistant de développement, placer ce dossier `custom_components/tesla_inventory_watch` dans son répertoire `custom_components`, puis ajouter l’intégration depuis les paramètres. Après une mise à jour via HACS, redémarrer Home Assistant.
+
+## Limites et diagnostic
+
+- Tesla peut refuser les clients automatisés (HTTP 403). Les cookies et en-têtes ne garantissent pas l’accès ; cette intégration ne contourne pas les restrictions Tesla.
+- Si un proxy est requis, les variables standard `HTTPS_PROXY`, `HTTP_PROXY` et `NO_PROXY` sont prises en compte. La vérification TLS reste activée.
+- Une réponse invalide ou incomplète conserve la référence des VIN et rend la mise à jour indisponible ; elle n’est pas interprétée comme un inventaire vide.
+- La pagination est limitée à 100 pages de 24 résultats par actualisation. Une recherche dépassant cette limite échoue explicitement : affiner alors les filtres.
+- Les modifications du tri, des notifications et de l’intervalle ne réinitialisent pas la référence des VIN. Les changements de filtres le font silencieusement.
+- Lors du premier passage à la version 0.2.5, la nouvelle signature réinitialise silencieusement la référence une fois.

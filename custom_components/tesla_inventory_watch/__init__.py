@@ -47,6 +47,7 @@ async def async_setup_entry(
     websession = async_create_clientsession(
         hass,
         cookie_jar=CookieJar(),
+        trust_env=True,
     )
     api = TeslaInventoryApi(websession, config)
     coordinator = TeslaInventoryCoordinator(hass, entry, api, config)
