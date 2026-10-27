@@ -1,5 +1,20 @@
 # Tesla Inventory Watch
 
+## Application web autonome (local ou OVH)
+
+Une application web indépendante de Home Assistant est disponible dans **[webapp](webapp/README.md)** : tableau de bord français, filtres, Chromium réel, trois contrôles par jour, historique et notifications dans la page. Installation avec Docker en local ou sur un VPS OVH avec HTTPS. La collecte reste soumise aux refus éventuels de Tesla.
+
+```sh
+cd webapp
+cp .env.example .env
+docker compose up -d --build
+```
+
+Le guide [webapp/README.md](webapp/README.md) explique la création de l’accès privé, l’installation OVH et les limites des notifications navigateur.
+
+---
+
+
 Intégration **non officielle** pour Home Assistant permettant de surveiller l'inventaire Tesla et d'être averti lorsqu'un nouveau véhicule correspondant aux critères configurés apparaît.
 
 > Cette intégration n'est ni développée, ni approuvée, ni supportée par Tesla. Elle utilise l'endpoint d'inventaire utilisé par le site Tesla ; cet endpoint n'est pas une API publique documentée et peut changer.

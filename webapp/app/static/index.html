@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#133d35"><meta name="description" content="Votre veille personnelle de l’inventaire Tesla.">
+  <title>Tesla Inventory Watch · Votre veille automobile</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script>
+</head>
+<body>
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-brand"><span class="brand-mark">iw</span> inventory watch<span class="brand-dot">.</span></div>
+  <div class="auth-card">
+    <div class="eyebrow">VOTRE PROCHAINE TESLA</div><h1 id="auth-title">Bienvenue chez vous.</h1>
+    <p id="auth-description">Connectez-vous pour retrouver votre surveillance.</p>
+    <form id="auth-form"><label for="password">Mot de passe</label><input id="password" type="password" minlength="12" maxlength="256" autocomplete="current-password" required placeholder="Au moins 12 caractères">
+      <label id="confirm-label" for="password-confirm" hidden>Confirmer le mot de passe</label><input id="password-confirm" type="password" autocomplete="new-password" placeholder="Saisissez à nouveau votre mot de passe" hidden>
+      <p id="auth-error" class="form-error" role="alert"></p><button class="button primary full" id="auth-submit">Se connecter <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="auth-foot">Vos recherches et vos données restent sur votre serveur.</p>
+  </div><p class="auth-legal">Projet indépendant, sans affiliation avec Tesla.</p>
+</div>
+<div id="application" class="layout" hidden>
+  <aside class="sidebar">
+    <a class="brand" href="#dashboard" aria-label="Accueil"><span class="brand-mark">iw</span><span>inventory<br>watch<span class="brand-dot">.</span></span></a>
+    <span class="side-caption">VOTRE ESPACE</span>
+    <nav aria-label="Navigation principale">
+      <a href="#dashboard" data-view="dashboard" class="nav-link active"><span aria-hidden="true">◫</span> Tableau de bord</a>
+      <a href="#search" data-view="search" class="nav-link"><span aria-hidden="true">⌕</span> Ma recherche</a>
+      <a href="#history" data-view="history" class="nav-link"><span aria-hidden="true">◷</span> Historique <span id="nav-count" class="nav-count" hidden>0</span></a>
+      <a href="#help" data-view="help" class="nav-link"><span aria-hidden="true">ⓘ</span> Comment ça marche</a>
+    </nav>
+    <div class="sidebar-bottom"><div class="private-label"><span class="small-dot"></span> Votre instance privée</div><p>Un peu de patience.<br>La bonne annonce arrive.</p><button id="logout" class="text-button">Se déconnecter <span aria-hidden="true">→</span></button><span class="version">WEB APP · 1.0</span></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span id="breadcrumb">Votre espace <span>/</span> Tableau de bord</span><div class="topbar-right"><span class="local-tag">HÉBERGÉ CHEZ VOUS</span><button id="account-logout" class="avatar" aria-label="Se déconnecter" title="Se déconnecter">M</button></div></header>
+    <main>
+      <section id="view-dashboard" class="view">
+        <div class="heading-row"><div><div class="eyebrow">L’INVENTAIRE, SANS Y PENSER</div><h1>La bonne Tesla.<br><span class="soft-text">Au bon moment.</span></h1><p class="intro">Vos critères. Trois contrôles par jour. Les nouvelles annonces ici.</p></div><div class="heading-actions"><span id="status-badge" class="status-pill"><span class="small-dot"></span> En pause</span><button id="toggle-monitor" class="button primary">Activer la surveillance <span aria-hidden="true">→</span></button></div></div>
+        <div id="status-message" class="notice" hidden role="status"></div>
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-label">Véhicules disponibles <span aria-hidden="true">→</span></div><div id="available-count" class="stat-number">—</div><div id="last-success" class="stat-note">Votre premier contrôle vous attend</div></article>
+          <article class="stat-card mint"><div class="stat-label">Nouvelles annonces <span class="tiny-label">NON LUES</span></div><div id="new-count" class="stat-number">0<span class="stat-spark" aria-hidden="true">✧</span></div><div class="stat-note">Depuis votre dernière consultation</div></article>
+          <article class="stat-card"><div class="stat-label">Prochain contrôle <span aria-hidden="true">◷</span></div><div id="next-check" class="stat-time">À votre rythme.</div><div id="next-caption" class="stat-note">Une vérification toutes les 8 heures</div></article>
+        </div>
+        <article class="search-summary"><div class="summary-icon" aria-hidden="true">⌕</div><div class="summary-content"><div class="eyebrow">VOTRE RECHERCHE ACTIVE</div><h2 id="summary-title">Model 3 · Occasion</h2><div id="summary-chips" class="chips"></div></div><a href="#search" class="button secondary">Modifier les critères <span aria-hidden="true">→</span></a></article>
+        <div class="section-heading"><div><h2>Les véhicules repérés<span id="vehicle-counter" class="counter">0</span></h2><p>Le dernier inventaire correspondant à vos critères.</p></div><button id="check-now" class="button secondary">Vérifier maintenant <span aria-hidden="true">↻</span></button></div>
+        <div id="vehicles" class="vehicle-grid"></div>
+        <div id="empty-state" class="empty-state"><div class="empty-road" aria-hidden="true"><svg viewBox="0 0 260 100"><path d="M0 75h260M105 75l15-50h20l15 50"/><path class="road-dash" d="M130 36v10m0 9v10"/><path class="car-line" d="M43 66v-9l7-3 8-14h40l10 14 8 3v9H43zm12-12h44m-44 12a6 6 0 1 0 12 0m24 0a6 6 0 1 0 12 0"/></svg></div><h3>La veille commence ici.</h3><p id="empty-description">Vérifiez vos critères, puis lancez votre premier contrôle.<br>La première recherche crée une référence silencieuse.</p><a href="#search" class="text-link">Personnaliser ma recherche <span aria-hidden="true">→</span></a></div>
+        <div class="bottom-note"><span aria-hidden="true">ⓘ</span><p>Une veille mesurée : au maximum trois contrôles par jour. Tesla peut limiter l’accès ; l’état et le prochain essai restent visibles ici.</p></div>
+      </section>
+      <section id="view-search" class="view" hidden>
+        <div class="eyebrow">CE QUI COMPTE POUR VOUS</div><h1>Votre prochaine Tesla.</h1><p class="intro">Affinez la recherche. Le prochain contrôle utilisera ces critères.</p>
+        <form id="search-form" class="search-form">
+          <div class="form-panel"><div class="panel-title"><span class="step-index">01</span><div><h2>Le véhicule</h2><p>Modèle, état et versions souhaitées.</p></div></div><div class="form-grid">
+            <label>Modèle<select name="model"><option value="m3">Model 3</option><option value="my">Model Y</option><option value="ms">Model S</option><option value="mx">Model X</option></select></label>
+            <label>État<select name="condition"><option value="used">Occasion</option><option value="new">Neuf</option></select></label>
+            <label>Années<input name="years" placeholder="2021, 2022, 2023, 2024, 2025"><small>Séparées par des virgules. Vide : toutes les années.</small></label>
+            <label>Codes de version Tesla<input name="categories" placeholder="LRRWD, PRRWD, LRAWD"><small>Codes séparés par des virgules. Vide : toutes les versions.</small></label>
+            <label class="wide">Couleurs Tesla<input name="paints" placeholder="BLACK, GREY"><small>Codes séparés par des virgules. Vide : toutes les couleurs.</small></label>
+          </div></div>
+          <div class="form-panel"><div class="panel-title"><span class="step-index">02</span><div><h2>Les bonnes limites</h2><p>Votre budget et le kilométrage.</p></div></div><div class="form-grid">
+            <label>Prix minimum (€)<input name="price_min" type="number" min="0" max="300000" required></label><label>Prix maximum (€)<input name="price_max" type="number" min="0" max="300000" required></label>
+            <label>Kilométrage minimum (km)<input name="odometer_min" type="number" min="0" max="1000000" required></label><label>Kilométrage maximum (km)<input name="odometer_max" type="number" min="0" max="1000000" required></label>
+          </div></div>
+          <div class="form-panel"><div class="panel-title"><span class="step-index">03</span><div><h2>Autour de chez vous</h2><p>La recherche est effectuée sur l’inventaire français.</p></div></div><div class="form-grid">
+            <label>Code postal<input name="zip" pattern="[0-9]{5}" maxlength="5" inputmode="numeric" required></label><label>Rayon Tesla<input name="range" type="number" min="0" max="2000" required><small>0 conserve le comportement par défaut de Tesla.</small></label>
+            <label>Latitude<input name="latitude" type="number" min="-90" max="90" step="any" required></label><label>Longitude<input name="longitude" type="number" min="-180" max="180" step="any" required></label>
+          </div></div>
+          <div class="notice compact">Changer les filtres établit une nouvelle référence silencieuse. La prochaine échéance de contrôle est conservée.</div>
+          <div class="form-footer"><p id="search-feedback" role="status"></p><button class="button primary" type="submit">Enregistrer ma recherche <span aria-hidden="true">→</span></button></div>
+        </form>
+      </section>
+      <section id="view-history" class="view" hidden>
+        <div class="eyebrow">NE RIEN PERDRE DE VUE</div><h1>Votre historique.</h1><p class="intro">Les nouvelles annonces restent ici, même après fermeture de la page.</p>
+        <div class="section-heading"><h2>Les 100 dernières annonces</h2><button id="mark-read" class="button secondary">Tout marquer comme lu <span aria-hidden="true">✓</span></button></div><div id="events-list" class="events-list"></div>
+        <div class="section-heading"><h2>Journal des contrôles</h2><span class="muted">Les 20 derniers contrôles</span></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Source</th><th>État</th><th>Résultats</th><th>Détail</th></tr></thead><tbody id="checks-list"></tbody></table></div>
+      </section>
+      <section id="view-help" class="view" hidden>
+        <div class="eyebrow">UNE VEILLE QUI RESTE SIMPLE</div><h1>Vous gardez la main.</h1><p class="intro">Quelques repères pour utiliser votre instance.</p>
+        <div class="help-grid"><article class="form-panel"><span class="step-index">01</span><h2>Trois fois par jour.</h2><p>Une vérification au maximum toutes les huit heures. L’attente est conservée après redémarrage, modification des filtres ou erreur Tesla. Un contrôle complet peut charger plusieurs pages.</p></article><article class="form-panel"><span class="step-index">02</span><h2>Les alertes, ici.</h2><p>Un nouveau VIN correspondant à vos critères apparaît dans l’historique. La première recherche ne déclenche pas d’alerte. Une annonce retirée entre deux contrôles peut être manquée.</p><button id="browser-notifications" class="button secondary">Activer les notifications navigateur</button><p id="notification-permission" class="muted">Le navigateur doit rester ouvert. HTTPS ou localhost requis.</p></article><article class="form-panel"><span class="step-index">03</span><h2>Un vrai navigateur.</h2><p>Le serveur utilise Chromium et conserve ses cookies. Cela ne garantit pas l’accès à Tesla, notamment depuis une adresse de serveur. Un refus 403 ou 429 reste visible sans nouvelles tentatives immédiates.</p><a href="https://www.tesla.com/fr_FR/inventory/used/m3" target="_blank" rel="noopener noreferrer" class="text-link">Ouvrir l’inventaire Tesla →</a></article><article class="form-panel"><span class="step-index">04</span><h2>Votre serveur, vos données.</h2><p>Recherche, historique et cookies Chromium restent dans le volume de données de l’application. Sauvegardez ce volume pour conserver votre accès et vos annonces.</p><p class="muted">Le guide d’installation OVH et local se trouve dans webapp/README.md du dépôt.</p></article></div>
+        <details class="import-panel"><summary>Solution manuelle si Tesla bloque le serveur</summary><p>Dans votre navigateur, ouvrez l’inventaire avec vos filtres. Dans les outils de développement → Réseau, copiez la réponse JSON de <code>inventory-results</code>. Importez uniquement une réponse complète : les totaux et les critères numériques sont vérifiés. Les codes de version absents de la réponse restent ceux de la recherche Tesla utilisée.</p><label for="import-json">Réponse JSON Tesla</label><textarea id="import-json" rows="7" placeholder='{"results": [...], "total_matches_found": 19}'></textarea><button id="import-button" class="button secondary">Importer ce résultat</button><p id="import-feedback" role="status"></p></details>
+      </section>
+      <footer>INVENTORY WATCH <span>Une veille personnelle. Un projet indépendant de Tesla.</span><a href="https://github.com/LoBidouille/Tesla-Inventory-Watch" target="_blank" rel="noopener noreferrer">GitHub →</a></footer>
+    </main>
+  </div>
+</div>
+<div id="toast" role="status" class="toast" hidden></div>
+</body></html>

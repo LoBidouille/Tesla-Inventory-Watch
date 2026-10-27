@@ -2,3 +2,10 @@ __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
+
+# Local standalone web application state and secrets
+webapp/.env
+webapp/.env.*
+!webapp/.env.example
+webapp/data/
+webapp/backups/

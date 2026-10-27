@@ -1,0 +1,25 @@
+name: tesla-inventory-watch
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+      PORT: 8080
+      CHROMIUM_EXECUTABLE: /usr/bin/chromium
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+    volumes:
+      - inventory_data:/data
+    shm_size: 512mb
+    mem_limit: 1536m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /home/app/.cache:size=128m,uid=10001,gid=10001,mode=0700
+volumes:
+  inventory_data:

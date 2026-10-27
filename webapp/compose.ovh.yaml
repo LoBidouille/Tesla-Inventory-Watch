@@ -1,0 +1,44 @@
+name: tesla-inventory-watch
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+      PORT: 8080
+      CHROMIUM_EXECUTABLE: /usr/bin/chromium
+      ALLOWED_HOSTS: "${DOMAIN},localhost,127.0.0.1"
+      PUBLIC_URL: "https://${DOMAIN}"
+      COOKIE_SECURE: "1"
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - inventory_data:/data
+    shm_size: 512mb
+    mem_limit: 1536m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /home/app/.cache:size=128m,uid=10001,gid=10001,mode=0700
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: "${DOMAIN}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  inventory_data:
+  caddy_data:
+  caddy_config:

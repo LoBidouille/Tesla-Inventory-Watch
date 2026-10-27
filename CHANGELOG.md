@@ -1,5 +1,14 @@
 # Changelog
 
+## Application web autonome 1.0
+
+- Ajoute `webapp/`, utilisable sans Home Assistant en local ou sur un VPS OVH.
+- Tableau de bord français adapté au téléphone, filtres, accès par mot de passe et historique SQLite.
+- Collecte avec Chromium réel et cookies persistants, limitée à trois contrôles par 24 heures.
+- Alertes dans la page et notifications navigateur facultatives lorsque la page reste ouverte, sans service tiers de messagerie.
+- Installation Docker, configuration HTTPS Caddy, données persistantes et guide d’exploitation.
+- Tests API, persistance, concurrence et parcours complet dans Chromium ; les refus éventuels de Tesla restent explicitement signalés.
+
 ## 0.3.1
 
 - Explique les refus HTTP 429 dans l’état de l’intégration et affiche la date/heure du prochain appel autorisé dans le fuseau Home Assistant.
